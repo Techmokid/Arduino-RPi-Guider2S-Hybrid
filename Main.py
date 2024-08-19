@@ -2,8 +2,10 @@ import time
 import random
 import Colors
 from ArduinoInstance import get_arduino_instance
+from DataInstance import get_data_instance
 from DrawMenus import *
 
+DataObject = get_data_instance()
 print("Arduino communications opening...")
 arduino = get_arduino_instance()
 print("Arduino communications open. Waiting for wakeup signal")
@@ -38,4 +40,5 @@ drawMainMenu()
 while True:
     drawTopBar_InternetConnectivity(force=False)
     buttonsHandler.process(getTouchSpot())
+    DataObject.update()
     

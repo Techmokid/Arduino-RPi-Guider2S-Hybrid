@@ -1,8 +1,7 @@
 // Modified the start of:
 // C:\Users\aj200\AppData\Local\Arduino15\packages\arduino\hardware\avr\1.8.6\cores\arduino\hardwareSerial.h
 //
-// Define or undefine "OVERRIDE_LARGE_BUFFER" to fix any serial memory issues. It will take 50% fo SRAM
-
+// Define or undefine "SERIAL_TX_BUFFER_SIZE" and "SERIAL_RX_BUFFER_SIZE" to fix any serial memory issues. It will take 50% of SRAM
 
 #include <Adafruit_GFX.h>
 #include <MCUFRIEND_kbv.h>
@@ -10,7 +9,6 @@
 #include <LinkedList.h>
 
 #define DEG_TO_RAD 0.017453292519943295 // approximately π/180
-
 
 #define YP A2
 #define XM A3
@@ -26,8 +24,8 @@
 #define EXTRUDER_HEATER_PIN      27
 #define BED_HEATER_PIN           28
 
-int desiredExtruderTemp = -1;
-int desiredBedTemp = -1;
+int desiredExtruderTemp = 24;
+int desiredBedTemp = 24;
 
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 MCUFRIEND_kbv tft;
@@ -368,7 +366,7 @@ void loop() {
       desiredExtruderTemp = GetNextElement(command, &isLast).toInt();
       Serial.println("OK");
     } else if (order == "BED") {
-      if (countChar(command, ':') != 5) {Serial.println("ERR");}
+      //if (countChar(command, ':') != 5) {Serial.println("ERR");}
       desiredBedTemp = GetNextElement(command, &isLast).toInt();
       Serial.println("OK");
     } else if (order == "LIGHT") {
@@ -388,6 +386,15 @@ void loop() {
       int pin = GetNextElement(command, &isLast).toInt();
       bool pinState = digitalRead(pin);
       Serial.println("PINREAD:" + String(pin) + ":" + String(pinState));
+    } else if (order == "PINAWRITE") {
+      int pin = GetNextElement(command, &isLast).toInt();
+      int state = StringToBool(GetNextElement(command, &isLast));
+      analogWrite(pin,state);
+      //Serial.println("WRITE DONE");
+    } else if (order == "PINAREAD") {
+      int pin = GetNextElement(command, &isLast).toInt();
+      int pinState = analogRead(pin);
+      Serial.println("PINAREAD:" + String(pin) + ":" + String(pinState));
     } else {
       //if (countChar(command, ':') != 5) {Serial.println("ERR");}
       digitalWrite(ERR_PIN,!digitalRead(ERR_PIN));
@@ -398,8 +405,21 @@ void loop() {
   //commands.clear();
 }
 
-int GetHeadTemp() { return analogRead(EXTRUDER_TEMP_SENSOR_PIN); }
-int GetBedTemp() { return analogRead(BED_TEMP_SENSOR_PIN); }
+float tempSimMovementSpeed = 0.001;
+float tempSimHead = 24;
+float tempSimBed = 24;
+//int GetHeadTemp() { return analogRead(EXTRUDER_TEMP_SENSOR_PIN); }
+//int GetBedTemp() { return analogRead(BED_TEMP_SENSOR_PIN); }
+int GetHeadTemp() {
+  if (tempSimHead < desiredExtruderTemp) { tempSimHead += tempSimMovementSpeed; }
+  if (tempSimHead > desiredExtruderTemp) { tempSimHead -= tempSimMovementSpeed; }
+  return tempSimHead;
+}
+int GetBedTemp() {
+  if (tempSimBed < desiredBedTemp) { tempSimBed += tempSimMovementSpeed; }
+  if (tempSimBed > desiredBedTemp) { tempSimBed -= tempSimMovementSpeed; }
+  return tempSimBed;
+}
 
 void handleTemperatures() {
   digitalWrite(EXTRUDER_HEATER_PIN, GetHeadTemp()<desiredExtruderTemp);

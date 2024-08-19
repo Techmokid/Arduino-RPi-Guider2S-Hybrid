@@ -3,18 +3,20 @@ if __name__ == "__main__":
     exit()
 
 from ArduinoInstance import get_arduino_instance
+from DataInstance import get_data_instance
 from Button import *
 from DrawFunctions import *
 from DrawImages import *
 
 buttonsHandler = Buttons()
+DataObject = get_data_instance()
 
 variablesDictionary = {}
 variablesDictionary["PreheatMenu_BedTemp"] = 60
 variablesDictionary["PreheatMenu_HeadTemp"] = 215
 variablesDictionary["PreheatMenu_DoHeadHeat"] = True
 variablesDictionary["PreheatMenu_DoBedHeat"] = True
-
+variablesDictionary["PreheatHeatingMenu_PrevUpdateTimer"] = time.time()
 
 
 
@@ -243,14 +245,51 @@ def drawPreheatMenu():
 
 
 
-
+def cooldownAndReturn():
+    arduino.send_command("BED:0");
+    arduino.send_command("HEAD:0");
+    drawMainMenu()
+    
+def DrawPreheatHeatingTempBars():
+    global variablesDictionary
+    if time.time() - variablesDictionary["PreheatHeatingMenu_PrevUpdateTimer"] > 0.2:
+        variablesDictionary["PreheatHeatingMenu_PrevUpdateTimer"] = time.time()
+        
+    return
 def drawPreheatHeatingMenu():
     global buttonsHandler
     global variablesDictionary
-
+    
     arduino.reconnectFunction = drawPreheatHeatingMenu
     cleanupScreenForNextDraw()
 
+    # Start arduino heating
+    if variablesDictionary["PreheatMenu_DoBedHeat"]:
+        arduino.send_command("BED:" + str(variablesDictionary["PreheatMenu_BedTemp"]))
+    else:
+        arduino.send_command("BED:0")
+    
+    if variablesDictionary["PreheatMenu_DoHeadHeat"]:
+        arduino.send_command("HEAD:" + str(variablesDictionary["PreheatMenu_HeadTemp"]))
+    else:
+        arduino.send_command("HEAD:0")
+
+    # Draw navigation buttons
+    buttonsHandler.add_button(0, 200, 160, 40, 30, 12,
+                           Colors.colors["CYAN"], Colors.colors["WHITE"],
+                           Colors.colors["LIME"], Colors.colors["WHITE"],
+                           "Cool Down",
+                           lambda: cooldownAndReturn(),
+                           None)
+    buttonsHandler.add_button(160, 200, 160, 40, 50, 12,
+                           Colors.colors["CYAN"], Colors.colors["WHITE"],
+                           Colors.colors["LIME"], Colors.colors["WHITE"],
+                           "Return",
+                           lambda: drawMainMenu(),
+                           None)
+
+    DrawPreheatHeatingTempBars()
+    DataObject.storedFunction = DrawPreheatHeatingTempBars
     
 
 
